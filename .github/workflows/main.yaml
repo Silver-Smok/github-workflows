@@ -1,0 +1,30 @@
+name: Main workflow
+on:
+  workflow_call:
+    inputs:
+      type:
+        required: false
+        type: string
+      production_min_instances:
+        required: false
+        type: number
+        default: 0
+
+jobs:
+  test-node:
+    uses: ./.github/workflows/test-node.yaml
+  deploy-production:
+    if: github.ref == 'master' && inputs.type == 'cloud-run-node'
+    needs: test
+    uses: ./.github/workflows/cloud-run-deploy.yaml
+    with:
+      environment: production
+      min_instances: ${{ inputs.production_min_instances }}
+    secrets: inherit
+  deploy-staging:
+    if: github.ref == 'develop' && inputs.type == 'cloud-run-node'
+    needs: test
+    uses: ./.github/workflows/cloud-run-deploy.yaml
+    with:
+      environment: production
+    secrets: inherit

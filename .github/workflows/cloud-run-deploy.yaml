@@ -1,0 +1,76 @@
+name: Deploy cloud run service
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      min_instances:
+        required: false
+        type: number
+        default: 0
+      memory:
+        required: false
+        type: string
+        default: "512Mi"
+
+env:
+  PROJECT_ID: ${{ inputs.environment == 'production' && secrets.GCP_SILVERSTOCK_PROJECT_PRODUCTION || secrets.GCP_SILVERSTOCK_PROJECT_STAGING }}
+  SERVICE_ACCOUNT_CREDENTIALS: ${{ inputs.environment == 'production' && secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_PRODUCTION || secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_STAGING }}
+
+jobs:
+  deploy-to-cloud-run:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set env
+        run: |-
+          export SERVICE=${GITHUB_REPOSITORY#*\/}-${{ inputs.environment }}
+          echo "SERVICE=${SERVICE}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/silverstock/$SERVICE:${{ github.sha }}" >> $GITHUB_ENV
+
+      - id: "auth"
+        uses: "google-github-actions/auth@v0"
+        with:
+          credentials_json: "${{ env.SERVICE_ACCOUNT_CREDENTIALS }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+
+      - name: Authorize Docker push
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      - name: Build and Push Container
+        run: |-
+          DOCKER_BUILDKIT=1 docker build --target production -t $IMAGE_TAG -f devops/docker/dockerfiles/Dockerfile .
+          docker push $IMAGE_TAG
+
+      - name: Deploy to Cloud Run
+        run: |-
+          gcloud run deploy $SERVICE \
+            --region europe-west1 \
+            --image $IMAGE_TAG \
+            --set-secrets=/home/config/settings.json=$SERVICE-secret:latest \
+            --platform "managed" \
+            --quiet \
+            --port 3000 \
+            --cpu 1 \
+            --concurrency 1000 \
+            --memory ${{ inputs.memory }} \
+            --min-instances ${{ inputs.min_instances }} \
+            --timeout 60 \
+            --allow-unauthenticated
+      - name: Route to firebase hosting
+        uses: w9jds/firebase-action@v2.2.2
+        with:
+          args: --project ${{ inputs.environment }} deploy --only hosting:${{ inputs.environment }}
+        env:
+          GCP_SA_KEY: ${{ env.SERVICE_ACCOUNT_CREDENTIALS }}
