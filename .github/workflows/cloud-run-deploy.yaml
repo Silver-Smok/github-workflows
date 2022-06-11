@@ -13,9 +13,9 @@ on:
         default: "512Mi"
 
 env:
-  ENVIRONMENT: ${{ github.ref == 'master' && 'production' || 'staging' }}
-  PROJECT_ID: ${{ github.ref == 'master'&& secrets.GCP_SILVERSTOCK_PROJECT_PRODUCTION || secrets.GCP_SILVERSTOCK_PROJECT_STAGING }}
-  SERVICE_ACCOUNT_CREDENTIALS: ${{ github.ref == 'master' && secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_PRODUCTION || secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_STAGING }}
+  ENVIRONMENT: ${{ github.ref_name == 'master' && 'production' || 'staging' }}
+  PROJECT_ID: ${{ github.ref_name == 'master'&& secrets.GCP_SILVERSTOCK_PROJECT_PRODUCTION || secrets.GCP_SILVERSTOCK_PROJECT_STAGING }}
+  SERVICE_ACCOUNT_CREDENTIALS: ${{ github.ref_name == 'master' && secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_PRODUCTION || secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_STAGING }}
 
 jobs:
   deploy-to-cloud-run:
