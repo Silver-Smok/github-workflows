@@ -1,0 +1,70 @@
+name: Publish npm package
+on:
+  workflow_call:
+
+jobs:
+  publish:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "write"
+      id-token: "write"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 16
+
+      - id: "auth"
+        name: "Authenticate to Google Cloud"
+        uses: "google-github-actions/auth@v0"
+        with:
+          credentials_json: ${{ secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_PRODUCTION }}
+
+      - name: Set up Cloud SDK
+        uses: "google-github-actions/setup-gcloud@v0"
+
+      - name: Create .npmrc
+        run: npm run artifactregistry-login
+
+      - name: Install
+        run: npm ci
+      - name: Check formatting and linting
+        run: npm run lint-ci
+      - name: Build
+        run: npm run build
+
+      - name: Release package
+        if: github.ref_name == 'master'
+        run: |-
+          git config --global user.email "npm-release@silver-smok.com"
+          git config --global user.name "npm-release"
+          npm version patch -m "%s [skip ci]"
+          npm publish
+      - name: Release package beta
+        if: github.ref_name == 'develop'
+        run: |-
+          git config --global user.email "npm-release@silver-smok.com"
+          git config --global user.name "npm-release"
+          npm version prerelease --preid beta -m "%s [skip ci]"
+          npm publish
+
+      - name: Push new version
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.CI_TOKEN }}
+          branch: ${{ github.ref }}
+
+      - name: Merge master -> develop
+        if: github.ref_name == 'master'
+        uses: everlytic/branch-merge@1.1.2
+        with:
+          github_token: ${{ secrets.CI_TOKEN  }}
+          source_ref: ${{ github.ref }}
+          target_branch: "develop"
+          commit_message_template: "[Automated] Merged {source_ref} into target {target_branch} [skip ci]"
