@@ -3,9 +3,6 @@ name: Deploy cloud run service
 on:
   workflow_call:
     inputs:
-      environment:
-        required: true
-        type: string
       min_instances:
         required: false
         type: number
@@ -16,8 +13,9 @@ on:
         default: "512Mi"
 
 env:
-  PROJECT_ID: ${{ inputs.environment == 'production' && secrets.GCP_SILVERSTOCK_PROJECT_PRODUCTION || secrets.GCP_SILVERSTOCK_PROJECT_STAGING }}
-  SERVICE_ACCOUNT_CREDENTIALS: ${{ inputs.environment == 'production' && secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_PRODUCTION || secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_STAGING }}
+  ENVIRONMENT: ${{ github.ref == 'master' && 'production' || 'staging' }}
+  PROJECT_ID: ${{ github.ref == 'master'&& secrets.GCP_SILVERSTOCK_PROJECT_PRODUCTION || secrets.GCP_SILVERSTOCK_PROJECT_STAGING }}
+  SERVICE_ACCOUNT_CREDENTIALS: ${{ github.ref == 'master' && secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_PRODUCTION || secrets.GCP_SILVERSTOCK_SA_CREDENTIALS_STAGING }}
 
 jobs:
   deploy-to-cloud-run:
@@ -33,7 +31,7 @@ jobs:
 
       - name: Set env
         run: |-
-          export SERVICE=${GITHUB_REPOSITORY#*\/}-${{ inputs.environment }}
+          export SERVICE=${GITHUB_REPOSITORY#*\/}-${{ env.ENVIRONMENT }}
           echo "SERVICE=${SERVICE}" >> $GITHUB_ENV
           echo "IMAGE_TAG=europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/silverstock/$SERVICE:${{ github.sha }}" >> $GITHUB_ENV
 
@@ -71,6 +69,6 @@ jobs:
       - name: Route to firebase hosting
         uses: w9jds/firebase-action@v2.2.2
         with:
-          args: --project ${{ inputs.environment }} deploy --only hosting:${{ inputs.environment }}
+          args: --project ${{ env.ENVIRONMENT }} deploy --only hosting:${{ env.ENVIRONMENT }}
         env:
           GCP_SA_KEY: ${{ env.SERVICE_ACCOUNT_CREDENTIALS }}
