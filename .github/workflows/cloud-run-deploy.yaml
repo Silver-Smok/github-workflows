@@ -11,6 +11,10 @@ on:
         required: false
         type: string
         default: "512Mi"
+      port:
+        required: false
+        type: number
+        default: 3000
 
 env:
   ENVIRONMENT: ${{ github.ref_name == 'master' && 'production' || 'staging' }}
@@ -59,7 +63,7 @@ jobs:
             --set-secrets=/home/config/settings.json=$SERVICE-secret:latest \
             --platform "managed" \
             --quiet \
-            --port 3000 \
+            --port ${{ inputs.port }} \
             --cpu 1 \
             --concurrency 1000 \
             --memory ${{ inputs.memory }} \
