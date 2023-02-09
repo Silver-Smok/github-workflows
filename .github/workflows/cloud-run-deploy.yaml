@@ -7,6 +7,10 @@ on:
         required: false
         type: number
         default: 0
+      max_instances:
+        required: false
+        type: number
+        default: 10
       memory:
         required: false
         type: string
@@ -57,7 +61,7 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |-
-          gcloud run deploy $SERVICE \
+          gcloud beta run deploy $SERVICE \
             --region europe-west1 \
             --image $IMAGE_TAG \
             --set-secrets=/home/config/settings.json=$SERVICE-secret:latest \
@@ -68,6 +72,8 @@ jobs:
             --concurrency 1000 \
             --memory ${{ inputs.memory }} \
             --min-instances ${{ inputs.min_instances }} \
+            --max-instances ${{ inputs.max_instances }} \
+            --session-affinity \
             --timeout 60 \
             --allow-unauthenticated
       - name: Route to firebase hosting
