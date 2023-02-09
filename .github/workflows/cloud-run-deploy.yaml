@@ -75,7 +75,7 @@ jobs:
             --max-instances ${{ inputs.max_instances }} \
             --session-affinity \
             --timeout 60 \
-            --allow-unauthenticated
+            --allow-unauthenticated \
             --quiet
       - name: Route to firebase hosting
         uses: w9jds/firebase-action@v2.2.2
