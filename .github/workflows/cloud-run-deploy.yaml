@@ -50,8 +50,6 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
-        with:
-          install_components: "beta"
 
       - name: Authorize Docker push
         run: gcloud auth configure-docker europe-west1-docker.pkg.dev
@@ -63,7 +61,7 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |-
-          gcloud beta run deploy $SERVICE \
+          gcloud run deploy $SERVICE \
             --region europe-west1 \
             --image $IMAGE_TAG \
             --set-secrets=/home/config/settings.json=$SERVICE-secret:latest \
@@ -75,7 +73,6 @@ jobs:
             --memory ${{ inputs.memory }} \
             --min-instances ${{ inputs.min_instances }} \
             --max-instances ${{ inputs.max_instances }} \
-            --session-affinity \
             --timeout 60 \
             --allow-unauthenticated
       - name: Route to firebase hosting
